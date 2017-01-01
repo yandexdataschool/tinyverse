@@ -26,16 +26,14 @@ addons:
 
 install:
   #dependeicies via pip
-  - travis_wait pip install -r requirements.txt
   - travis_wait pip install nose nose-parameterized
-  # intalling AgentNet
-  - pip install .
+  - travis_wait pip install https://github.com/yandexdataschool/AgentNet/archive/master.zip
+  - travis_wait pip install pymongo
+  - travis_wait pip install git+https://github.com/manahl/arctic.git
   # installing Gym
   - git clone https://github.com/openai/gym.git
   - cd gym && pip install -e . && cd ..
   - cd gym && pip install -e '.[atari]' && cd ..
-  - pip install pymongo
-  - pip install git+https://github.com/manahl/arctic.git
   
 
 script:
