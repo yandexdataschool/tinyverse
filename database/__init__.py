@@ -1,6 +1,3 @@
-"""
-A prototype database for params & sessions storage. Uses mongodb and arctic.
-"""
 import time
 import os
 from arctic import Arctic
@@ -14,7 +11,7 @@ class Database:
     def __init__(self,
                  ip = "0.0.0.0",
                  port = 8900,
-                 path = "/srv/mongo/",
+                 path = "./mongodb/",
                  sessions_db_name = "sessions",
                  params_db_name = "params",
                  default_quota = 100*(1024**3) #100gb
@@ -27,13 +24,16 @@ class Database:
         except ServerSelectionTimeoutError:
             
             #if not, launch
-            starter = "mkdir {path} || nohup mongod --bind_ip {ip} --port {port} --dbpath {path} &".format(
+            starter = "mkdir -p {path} && nohup mongod --bind_ip {ip} --port {port} --dbpath {path} &".format(
                     ip=ip,port=port,path=path
                 )
-
-            print "db not found at {}, launching...".format(hostname)
+            
+            #how long to wait: 30s first time, 10s afterwards
+            dt = 30 if not os.path.exists(path) else 10
+                
+            print "db not found at {}, launching({}s)...".format(hostname,dt)
             os.system(starter) #intentionally starting non-daemon process
-            time.sleep(3)
+            time.sleep(dt)
 
         
         #init arctic
