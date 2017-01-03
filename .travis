@@ -1,0 +1,40 @@
+language: python
+sudo: required
+dist: trusty
+
+python:
+  - "2.7"
+  - "3.4"
+
+addons:
+  apt:
+    sources:
+      - george-edison55-precise-backports
+    packages:
+      - libopenblas-dev
+      - liblapack-dev
+      - gfortran
+      - cmake
+      - cmake-data
+      - swig
+      - libav-tools
+      - libboost-all-dev
+      - libjpeg-dev
+      - zlib1g-dev
+      - python-dev
+      - mongodb-server
+
+install:
+  #dependeicies via pip
+  - travis_wait pip install nose nose-parameterized
+  - travis_wait pip install https://github.com/yandexdataschool/AgentNet/archive/master.zip
+  - travis_wait pip install pymongo
+  - travis_wait pip install git+https://github.com/manahl/arctic.git
+  # installing Gym
+  - git clone https://github.com/openai/gym.git
+  - cd gym && pip install -e . && cd ..
+  - cd gym && pip install -e '.[atari]' && cd ..
+  
+
+script:
+  - nosetests tests/test_database.py --verbose --nocapture  --failure-detail
