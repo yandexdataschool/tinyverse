@@ -1,5 +1,25 @@
 Think up a better name for me. OpenAI Universe wouldbe RL trainer
 
+### Quickstart
+* install mongodb
+  * (Ubuntu) sudo apt-get install mongodb-server 
+  * Mac OS version [HERE](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/). 
+  * Otherwise search "Install mongodb your_OS" or ask us
+* install python packages
+  * pip install pymongo
+  * pip install git+https://github.com/manahl/arctic.git
+  * theano, lasagne, agentnet as usual
+  * gym as described [here](https://github.com/openai/gym#installing-everything)
+  * universe from [here](https://github.com/openai/universe)
+  
+* Run mongo server (preferably in tmux/screen)
+  * `mongod --bind_ip 0.0.0.0 --port 8900 --dbpath ./mongodb/`
+* Run simple player
+  * `python player.py "experiment" -n 1000`
+* Run simple learner
+  * Not yet implemented
+
+
 ### What is this thing?
 
 __The project is in an early stage of development__
