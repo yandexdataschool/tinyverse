@@ -27,6 +27,7 @@ class Database:
             starter = "mkdir -p {path} && nohup mongod --bind_ip {ip} --port {port} --dbpath {path} &".format(
                     ip=ip,port=port,path=path
                 )
+            print starter
             
             #how long to wait: 30s first time, 10s afterwards
             dt = 30 if not os.path.exists(path) else 10
