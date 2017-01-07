@@ -37,6 +37,9 @@ class Experiment:
         
         self.agent = Agent(observation_layers=inp,action_layers=action_layer)
 
+        action_layers_weights = get_all_param_values(self.agent.action_layers)
+        np.savez('action_layer', action_layers_weights)
+
 
     def make_env(self):
         """spawn a new environment instance"""

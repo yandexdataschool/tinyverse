@@ -22,19 +22,20 @@ def load_all_params(agent,name):
 #####Main loop#####
 from agentnet.experiments.openai_gym.pool import EnvPool
 def generate_sessions(experiment,n_iters):
-    
     agent = experiment.agent
+    npz_file = np.load('action_layer.npz')
+    set_all_param_values(agent.action_layers, npz_file['arr_0'])
+    
     make_env = experiment.make_env
     seq_len = experiment.sequence_length
     
     pool = EnvPool(agent,lambda : make_env()) #TODO load new agentnet, rm lambda (bug is fixed)
 
-
     db = Database()
     if np.isinf(n_iters):
         epochs = count()
     else:
-        epochs = xrange(n_iters)
+        epochs = range(n_iters)
     
     for i in tqdm(epochs):
         observations,actions,rewards,memory,is_alive,info = pool.interact(seq_len)
@@ -46,7 +47,7 @@ import argparse
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Player process. Example: python player.py "experiment" 10000')
+    parser = argparse.ArgumentParser(description='Player process. Example: python player.py "experiment" -n 1000')
     parser.add_argument('experiment', metavar='e', type=str,
                     help='a path to the experiment you wish to play')
     parser.add_argument('-n', dest='n_iters', type=int,default=float('inf'),
