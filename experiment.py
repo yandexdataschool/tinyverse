@@ -7,6 +7,7 @@ from lasagne.nonlinearities import *
 from agentnet.resolver import EpsilonGreedyResolver
 from agentnet import Agent
 import gym
+from player import save_all_params
 
 class Experiment:
     def __init__(self,
@@ -37,8 +38,7 @@ class Experiment:
         
         self.agent = Agent(observation_layers=inp,action_layers=action_layer)
 
-        action_layers_weights = get_all_param_values(self.agent.action_layers)
-        np.savez('action_layer', action_layers_weights)
+        save_all_params(self.agent, self.params_name)
 
 
     def make_env(self):

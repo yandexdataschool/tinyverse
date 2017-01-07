@@ -17,14 +17,11 @@ def load_all_params(agent,name):
     all_params = db.arctic['params'].read(name).data
     set_all_param_values(list(agent.agent_states) + agent.action_layers, all_params)
 
-
     
 #####Main loop#####
 from agentnet.experiments.openai_gym.pool import EnvPool
-def generate_sessions(experiment,n_iters):
+def generate_sessions(experiment, n_iters, reload_period):
     agent = experiment.agent
-    npz_file = np.load('action_layer.npz')
-    set_all_param_values(agent.action_layers, npz_file['arr_0'])
     
     make_env = experiment.make_env
     seq_len = experiment.sequence_length
@@ -38,6 +35,11 @@ def generate_sessions(experiment,n_iters):
         epochs = range(n_iters)
     
     for i in tqdm(epochs):
+        if i % reload_period == 0 or (i == 0 and np.isinf(reload_period)):
+            try:
+                load_all_params(agent, experiment.params_name)
+            except:
+                print("error while trying to load NN weights")
         observations,actions,rewards,memory,is_alive,info = pool.interact(seq_len)
         db.record_session(observations[0],actions[0],rewards[0],is_alive[0],np.zeros(5))
 
@@ -52,6 +54,8 @@ if __name__ == "__main__":
                     help='a path to the experiment you wish to play')
     parser.add_argument('-n', dest='n_iters', type=int,default=float('inf'),
                     help='how many subsequences to record before exit (defaults to unlimited)')
+    parser.add_argument('-r', dest='reload_period', type=int,default=float('inf'),
+                    help='period (in epochs), how often NN weights are going to be reloaded')
 
     args = parser.parse_args()
     
@@ -59,13 +63,7 @@ if __name__ == "__main__":
     #load experiment from the specified module (TODO allow import by filepath)
     experiment = __import__(args.experiment).Experiment()
     
-    
-    #if there are any params, load them
-    try: 
-        load_all_params(experiment.agent,experiment.params_name)
-    except:pass
-    
-    generate_sessions(experiment,args.n_iters)
+    generate_sessions(experiment, args.n_iters, args.reload_period)
     
 
 
