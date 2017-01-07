@@ -27,12 +27,12 @@ class Database:
             starter = "mkdir -p {path} && nohup mongod --bind_ip {ip} --port {port} --dbpath {path} &".format(
                     ip=ip,port=port,path=path
                 )
-            print starter
+            print(starter)
             
             #how long to wait: 30s first time, 10s afterwards
             dt = 30 if not os.path.exists(path) else 10
                 
-            print "db not found at {}, launching({}s)...".format(hostname,dt)
+            print("db not found at {}, launching({}s)...".format(hostname,dt))
             os.system(starter) #intentionally starting non-daemon process
             time.sleep(dt)
 
@@ -42,14 +42,14 @@ class Database:
         
         #get or initialize sessions & params databases
         if params_db_name not in self.arctic.list_libraries():
-            print "creating", params_db_name
+            print("creating", params_db_name)
             self.arctic.initialize_library(params_db_name)
             self.arctic.set_quota(params_db_name,default_quota)
             
         self.params = self.arctic[params_db_name]
 
         if sessions_db_name not in self.arctic.list_libraries():
-            print "creating", sessions_db_name
+            print("creating", sessions_db_name)
             self.arctic.initialize_library(sessions_db_name)
             self.arctic.set_quota(sessions_db_name,default_quota)
         
