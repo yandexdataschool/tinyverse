@@ -3,6 +3,10 @@ import os
 from arctic import Arctic
 from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
+from lasagne.layers import get_all_param_values,set_all_param_values
+from utils import error_handling
+
+
 
 class Database:
     """
@@ -87,4 +91,16 @@ class Database:
         keys = ["observations","actions","rewards","is_alive","initial_memory"]
         return [self.sessions.read("{}.{}".format(index,key)).data for key in keys]
     
-    ##something about storing and loading parms##
+    @error_handling
+    def save_all_params(self,agent,name):
+        """saves agent params into the database under given name. overwrites by default"""
+        all_params = get_all_param_values(list(agent.agent_states) + agent.action_layers)
+        self.arctic['params'].write(name,all_params)
+                
+
+    @error_handling
+    def load_all_params(self,agent,name):
+        """loads agent params from the database under the given name"""
+        all_params = self.arctic['params'].read(name).data
+        set_all_param_values(list(agent.agent_states) + agent.action_layers, all_params)
+

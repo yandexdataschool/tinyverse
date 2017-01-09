@@ -7,17 +7,6 @@ from database import Database
 db = Database()
 
 
-#####Auxilary functions that may need their own module######
-from lasagne.layers import get_all_param_values,set_all_param_values
-def save_all_params(agent,name):
-    all_params = get_all_param_values(list(agent.agent_states) + agent.action_layers)
-    db.arctic['params'].write(name,all_params)
-
-def load_all_params(agent,name):
-    all_params = db.arctic['params'].read(name).data
-    set_all_param_values(list(agent.agent_states) + agent.action_layers, all_params)
-
-    
 #####Main loop#####
 from agentnet.experiments.openai_gym.pool import EnvPool
 def generate_sessions(experiment, n_iters, reload_period):
@@ -26,7 +15,7 @@ def generate_sessions(experiment, n_iters, reload_period):
     make_env = experiment.make_env
     seq_len = experiment.sequence_length
     
-    pool = EnvPool(agent,lambda : make_env()) #TODO load new agentnet, rm lambda (bug is fixed)
+    pool = EnvPool(agent,make_env) #TODO load new agentnet, rm lambda (bug is fixed)
 
     db = Database()
     if np.isinf(n_iters):
@@ -36,10 +25,7 @@ def generate_sessions(experiment, n_iters, reload_period):
     
     for i in tqdm(epochs):
         if i % reload_period == 0 or (i == 0 and np.isinf(reload_period)):
-            try:
-                load_all_params(agent, experiment.params_name)
-            except:
-                print("error while trying to load NN weights")
+            db.load_all_params(agent, experiment.params_name,errors='warn')
         observations,actions,rewards,memory,is_alive,info = pool.interact(seq_len)
         db.record_session(observations[0],actions[0],rewards[0],is_alive[0],np.zeros(5))
 
