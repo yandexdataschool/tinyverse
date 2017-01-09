@@ -17,7 +17,6 @@ def generate_sessions(experiment, n_iters, reload_period):
     
     pool = EnvPool(agent,make_env) #TODO load new agentnet, rm lambda (bug is fixed)
 
-    db = Database()
     if np.isinf(n_iters):
         epochs = count()
     else:
@@ -25,9 +24,10 @@ def generate_sessions(experiment, n_iters, reload_period):
     
     for i in tqdm(epochs):
         if i % reload_period == 0 or (i == 0 and np.isinf(reload_period)):
-            db.load_all_params(agent, experiment.params_name,errors='warn')
+            db.save_all_params(agent, experiment.params_name,errors='warn')
         observations,actions,rewards,memory,is_alive,info = pool.interact(seq_len)
         db.record_session(observations[0],actions[0],rewards[0],is_alive[0],np.zeros(5))
+        #TODO record last memory states
 
     
     

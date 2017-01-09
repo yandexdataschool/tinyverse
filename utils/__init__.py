@@ -20,7 +20,7 @@ def error_handling(f):
                 
                 exc_type,exc,tb = sys.exc_info()
                 if errors =='warn':
-                    warn(exc.message)
+                    warn(str(exc))
                 else:
                     assert errors =='ignore', "errors must be 'raise','warn' or 'ignore'"
     f_safe.__doc__=f.__doc__
