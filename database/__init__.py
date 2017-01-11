@@ -68,12 +68,14 @@ class Database:
     #########################
     #however you implement me, i must have these methods:
     
-    def record_session(self,observations,actions,rewards,is_alive,initial_memory,prev_session_index=-1):
+    def record_session(self,observations,actions,rewards,is_alive,
+                       initial_memory,prev_session_index=-1):
         """
         Creates database entry for a single game session.
         Game session needn't start from beginning or end at the terminal state.
         """
-        index = self.registry.insert_one({"prev_session_index":prev_session_index}).inserted_id
+        index = self.registry.insert_one({"prev_session_index":prev_session_index}
+                                        ).inserted_id
         
         keys = ["observations","actions","rewards","is_alive","initial_memory"]
         values = [observations,actions,rewards,is_alive,initial_memory]
@@ -90,6 +92,15 @@ class Database:
         """
         keys = ["observations","actions","rewards","is_alive","initial_memory"]
         return [self.sessions.read("{}.{}".format(index,key)).data for key in keys]
+
+    def remove_session(self,index):
+        """
+        removes all the data from a particular session id
+        """
+        self.registry.delete_one({"_id":index})
+        keys = ["observations","actions","rewards","is_alive","initial_memory"]
+        for key in keys:
+            self.sessions.delete("{}.{}".format(index,key))
     
     @error_handling
     def save_all_params(self,agent,name):
