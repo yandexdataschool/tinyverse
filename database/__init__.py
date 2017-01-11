@@ -1,10 +1,11 @@
-import time
 import os
-from arctic import Arctic
-from pymongo import MongoClient
-from pymongo.errors import ServerSelectionTimeoutError
+import redis
+
 from lasagne.layers import get_all_param_values,set_all_param_values
+
+import numpy as np
 from utils import error_handling
+from utils.to_string import loads,dumps
 
 
 
@@ -13,105 +14,78 @@ class Database:
     mongoDB wrapper that supports basic operations with game sessions and params    
     """
     def __init__(self,
-                 ip = "0.0.0.0",
-                 port = 8900,
-                 path = "./mongodb/",
-                 sessions_db_name = "sessions",
-                 params_db_name = "params",
-                 default_quota = 100*(1024**3) #100gb
+                 host = "0.0.0.0",
+                 port = 7070,
+                 password=None,
+                 default_session_key="sessions.",
         ):
         
-        hostname = "mongodb://{ip}:{port}".format(ip=ip,port=port)
-        #see if db is even there
-        try:
-            Arctic(hostname,serverSelectionTimeoutMS=2000).list_libraries()
-        except ServerSelectionTimeoutError:
-            
-            #if not, launch
-            starter = "mkdir -p {path} && nohup mongod --bind_ip {ip} --port {port} --dbpath {path} &".format(
-                    ip=ip,port=port,path=path
-                )
-            print(starter)
-            
-            #how long to wait: 30s first time, 10s afterwards
-            dt = 30 if not os.path.exists(path) else 10
-                
-            print("db not found at {}, launching({}s)...".format(hostname,dt))
-            os.system(starter) #intentionally starting non-daemon process
-            time.sleep(dt)
-
         
-        #init arctic
-        self.arctic = Arctic(hostname,app_name="tensors")        
+        self.redis = redis.Redis(host=host,port=port,password=password)
+        self.default_session_key=default_session_key
         
-        #get or initialize sessions & params databases
-        if params_db_name not in self.arctic.list_libraries():
-            print("creating", params_db_name)
-            self.arctic.initialize_library(params_db_name)
-            self.arctic.set_quota(params_db_name,default_quota)
-            
-        self.params = self.arctic[params_db_name]
-
-        if sessions_db_name not in self.arctic.list_libraries():
-            print("creating", sessions_db_name)
-            self.arctic.initialize_library(sessions_db_name)
-            self.arctic.set_quota(sessions_db_name,default_quota)
         
-        self.sessions = self.arctic[sessions_db_name]
-        
-        #init regular databases
-        self.registry = MongoClient(hostname)["main"][sessions_db_name]
-                
-    
     #########################
     ###public DB interface###
     #########################
     #however you implement me, i must have these methods:
     
     def record_session(self,observations,actions,rewards,is_alive,
-                       initial_memory,prev_session_index=-1):
+                       initial_memory=None,
+                       prev_session_index=-1,
+                       session_key=None,
+                       index=None):
         """
         Creates database entry for a single game session.
         Game session needn't start from beginning or end at the terminal state.
         """
-        index = self.registry.insert_one({"prev_session_index":prev_session_index}
-                                        ).inserted_id
         
-        keys = ["observations","actions","rewards","is_alive","initial_memory"]
-        values = [observations,actions,rewards,is_alive,initial_memory]
+        session_key = session_key or self.default_session_key
         
-        for key,value in zip(keys,values):
-            self.sessions.write("{}.{}".format(index,key),value)
+        data = dumps([observations,actions,rewards,is_alive,initial_memory])
 
-        return index
-    
-    def get_session(self,index):
+        if index is None:
+            self.redis.lpush(session_key,data)
+        else:
+            self.redis.lset(session_key,index,data)
+        
+    def num_sessions(self,session_key=None):
+        """returns number of sessions under specified prefix"""
+        session_key = session_key or self.default_session_key
+        return self.redis.llen(session_key)
+        
+    def get_session(self,index=0,session_key=None,):
         """
         obtains all the data for a particular session
         :returns: observations,actions,rewards,is_alive,initial_memory
         """
-        keys = ["observations","actions","rewards","is_alive","initial_memory"]
-        return [self.sessions.read("{}.{}".format(index,key)).data for key in keys]
+        session_key = session_key or self.default_session_key
+        data = self.redis.lindex(session_key,index)
+        return loads(data)
 
-    def remove_session(self,index):
+    def trim_sessions(self,start=0,end=-1,session_key=None):
         """
-        removes all the data from a particular session id
+        removes the data for all sessions but for given range
+        Both start and end are INCLUSIVE borders
         """
-        self.registry.delete_one({"_id":index})
-        keys = ["observations","actions","rewards","is_alive","initial_memory"]
-        for key in keys:
-            self.sessions.delete("{}.{}".format(index,key))
+        session_key = session_key or self.default_session_key
+        self.redis.ltrim(session_key,start,end)
+            
+        
+        
+        
+        
     
     @error_handling
     def save_all_params(self,agent,name):
         """saves agent params into the database under given name. overwrites by default"""
         all_params = get_all_param_values(list(agent.agent_states) + agent.action_layers)
-        self.arctic['params'].write(name,all_params)
+        self.redis.set(name,dumps(all_params))
                 
 
     @error_handling
     def load_all_params(self,agent,name):
         """loads agent params from the database under the given name"""
-        all_params = self.arctic['params'].read(name).data
+        all_params = loads(self.redis.get(name))
         set_all_param_values(list(agent.agent_states) + agent.action_layers, all_params)
 

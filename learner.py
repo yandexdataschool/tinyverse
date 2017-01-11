@@ -10,29 +10,33 @@ import theano
 import theano.tensor as T
 from agentnet.environment import SessionBatchEnvironment
 
-def sample_batch(db,batch_size):
+def sample_batch(batch_size):
     """sample batch_size random sessions from database"""
+    batch_keys = np.random.randint(0,db.num_sessions(),batch_size)
+        
     batch = []
-    for b in range(batch_size):
-        rnd_skip = np.random.randint(db.registry.count())
-        sample_id = db.registry.find().limit(-1).skip(rnd_skip).next()["_id"]
-        batch.append(db.get_session(sample_id))
+    for key in batch_keys:
+        batch.append(db.get_session(key))
         
     return zip(*batch)
 
 
-def clean_old_sessions(n_remaining):
-    n_to_remove = max(0,db.registry.count() - n_remaining)
+
+
+from prefetch_generator import background
+@background(max_prefetch=10)
+def iterate_minibatches(n_iters,batch_size,replay_buffer_size,trim_every=100):
+    epochs = count() if np.isinf(n_iters) else range(n_iters)
+    for epoch in epochs:
+        yield sample_batch(batch_size)
+        if epoch % trim_every ==0:
+            db.trim_sessions(0,replay_buffer_size)
+
     
-    if n_to_remove ==0: return
-    
-    ids = [doc["_id"] for doc in db.registry.find({}).sort([("_id",1)]).limit(n_to_remove)]
-    for idx in ids:
-        db.remove_session(idx)
     
     
 def train_on_sessions(experiment,batch_size,n_iters,
-                      save_period=100,replay_memory_size=30000):
+                      save_period=100,replay_memory_size=50000):
     
     
     observations = T.tensor5("observations[b,t,u]")
@@ -53,18 +57,13 @@ def train_on_sessions(experiment,batch_size,n_iters,
     #load params
     db.load_all_params(experiment.agent,experiment.params_name,errors='warn')
     
-    if np.isinf(n_iters):
-        epochs = count()
-    else:
-        epochs = range(n_iters)
+    iterator = iterate_minibatches(n_iters,batch_size,replay_memory_size)
     
-    for i in tqdm(epochs):
+    for i,batch in tqdm(enumerate(iterator)):
         if i % save_period == 0 or (i == 0 and np.isinf(reload_period)):
             db.save_all_params(experiment.agent, experiment.params_name,errors='warn')
             
-        clean_old_sessions(replay_memory_size)
-            
-        s,a,r,alive,_ = sample_batch(db,batch_size)
+        s,a,r,alive,_ = batch
         train_step(s,a,r,alive)
             
 
