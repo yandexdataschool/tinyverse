@@ -24,7 +24,7 @@ def generate_sessions(experiment, n_iters, n_games,reload_period):
     
     for i in tqdm(epochs):
         if i % reload_period == 0 or (i == 0 and np.isinf(reload_period)):
-            db.save_all_params(agent, experiment.params_name,errors='warn')
+            db.load_all_params(agent, experiment.params_name,errors='warn')
             
             
         prev_memory = list(pool.prev_memory_states)

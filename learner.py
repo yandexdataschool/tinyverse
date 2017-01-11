@@ -77,7 +77,7 @@ import argparse
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Player process. Example: python player.py "experiment" -n 1000')
+    parser = argparse.ArgumentParser(description='Player process. Example: python learner.py experiment -n 1000')
     parser.add_argument('experiment', metavar='e', type=str,
                     help='a path to the experiment you wish to play')
     parser.add_argument('-n', dest='n_iters', type=int,default=float('inf'),
