@@ -11,7 +11,7 @@ from lasagne.nonlinearities import *
 
 from agentnet import Agent
 from agentnet.resolver import EpsilonGreedyResolver
-from agentnet.learning import qlearning
+from agentnet.learning import a2c_n_step
 from agentnet.memory import GRUCell
 
 import gym
@@ -25,7 +25,7 @@ class Experiment:
         
         self.game = game
         self.params_name = params_name
-        self.sequence_length = 10
+        self.sequence_length = 20
         
         observation_shape = (1,42,42)#same as env.observation_space.shape
         n_actions = 6 # same as env.action_space.n
@@ -36,23 +36,25 @@ class Experiment:
         #network body
         conv0 = Conv2DLayer(inp,32,3,stride=2,nonlinearity=elu)
         conv1 = Conv2DLayer(conv0,32,3,stride=2,nonlinearity=elu)
-        conv2 = Conv2DLayer(conv1,64,3,stride=2,nonlinearity=elu)
+        conv2 = Conv2DLayer(conv1,32,3,stride=2,nonlinearity=elu)
+        conv3 = Conv2DLayer(conv2,32,3,stride=2,nonlinearity=elu)
         
         prev_gru = InputLayer((None,256))
-        new_gru = GRUCell(prev_gru,flatten(conv2))
+        new_gru = GRUCell(prev_gru,flatten(conv3))
         
         dense1 = DenseLayer(new_gru,256,nonlinearity=tanh)
 
         #a layer that predicts Qvalues
-        qvalues_layer = DenseLayer(dense1,n_actions,nonlinearity=None)
+        policy_layer = DenseLayer(dense1,n_actions,nonlinearity=T.nnet.softmax)
+        V_layer = DenseLayer(dense1,1,nonlinearity=None)
+        
 
-        #To pick actions, we use an epsilon-greedy resolver (epsilon is a property)
-        from agentnet.resolver import EpsilonGreedyResolver
-        action_layer = EpsilonGreedyResolver(qvalues_layer)
-        action_layer.epsilon.set_value(np.float32(0.05))
+        #sample actions proportionally to policy_layer
+        from agentnet.resolver import ProbabilisticResolver
+        action_layer = ProbabilisticResolver(policy_layer)
         
         self.agent = Agent(observation_layers=inp,
-                           policy_estimators=qvalues_layer,
+                           policy_estimators=(policy_layer,V_layer),
                            agent_states={new_gru:prev_gru},
                            action_layers=action_layer)
 
@@ -65,7 +67,7 @@ class Experiment:
     
     def build_train_step(self,replay,inputs=()):
         """Compiles a function to train for one step"""
-        _,_,_,_,qvalues_seq = self.agent.get_sessions(
+        _,_,_,_,(policy_seq,V_seq) = self.agent.get_sessions(
             replay,
             session_length=self.sequence_length,
             experience_replay=True,
@@ -73,21 +75,24 @@ class Experiment:
         
         #get reference Qvalues according to Qlearning algorithm
 
+        elwise_mse_loss = a2c_n_step.get_elementwise_objective(policy = policy_seq,
+                                                               state_values = V_seq,
+                                                               actions = replay.actions[0],
+                                                               rewards = replay.rewards,
+                                                               is_alive = replay.is_alive.astype('float32'),
+                                                               gamma_or_gammas=0.99,)
 
-        elwise_mse_loss = qlearning.get_elementwise_objective(qvalues_seq,
-                                                              replay.actions[0],
-                                                              replay.rewards,
-                                                              replay.is_alive,
-                                                              gamma_or_gammas=0.99,)
-
-        #compute mean over "alive" fragments
-        loss = elwise_mse_loss.sum() / replay.is_alive.sum()
+        
+        reg_entropy = (-policy_seq * T.log(policy_seq)).sum(axis=-1).mean()
+        
+        loss  = elwise_mse_loss.mean() - 0.01*reg_entropy
         
         
-        weights = get_all_params(self.agent.action_layers+list(self.agent.agent_states))
+        weights = get_all_params(self.agent.action_layers+list(self.agent.agent_states),
+                                 trainable=True)
         
         # Compute weight updates
-        updates = lasagne.updates.rmsprop(loss,weights,learning_rate=0.01)
+        updates = lasagne.updates.adam(loss,weights,learning_rate=1e-4)
         
         #compile train function
         return theano.function(inputs,loss,updates=updates,allow_input_downcast=True)
