@@ -12,6 +12,7 @@ class Database:
                  default_prefix="",
                  default_session_key="sessions",
                  default_params_key="weights",
+                 default_worker_prefix="workers.",
                  *args,**kwargs
                  ):
         """
@@ -22,7 +23,8 @@ class Database:
         :param port: redis port
         :param args: args for database client (redis)
         :param kwargs: kwargs for database client (redis), e.g. password="***"
-        :param default_prefix: prepended to both default_params_key and default_session_key. Does NOT affect anything else.
+        :param default_prefix: prepended to both default_params_key and default_session_key and 
+            default_worker_prefix. Does NOT affect custom keys.
         :param default_session_key: default name for session list
         :param default_params_key: default name for weights pickle
         """
@@ -42,10 +44,21 @@ class Database:
         #naming parameters
         self.default_session_key = default_prefix+default_session_key
         self.default_params_key = default_prefix+default_params_key
+        self.default_worker_prefix= default_prefix+default_worker_prefix
+
 
     def start_redis(self, port=7070):
         """starts a redis serven in a NON-DAEMON mode"""
         os.system("nohup redis-server --port %s > .redis.log &" % port)
+        
+    def worker_heartbeat(self,role,pid=None,worker_prefix=None,value=1,expiration_time=30):
+        """registers worker to the database. Used to quickly kill all workers."""
+        pid= pid or os.getpid()
+        worker_prefix = worker_prefix or self.default_worker_prefix
+        key = worker_prefix+role+"."+str(pid)
+        self.redis.set(key,value)
+        if expiration_time is not None:
+            self.redis.expire(key,expiration_time)
 
     def dumps(self,data):
         """converts whatever to string"""
@@ -71,6 +84,7 @@ class Database:
         Creates database entry for a single game session.
         Game session needn't start from beginning or end at the terminal state.
         """
+        self.worker_heartbeat("play")
 
         session_key = session_key or self.default_session_key
 
@@ -80,6 +94,7 @@ class Database:
             self.redis.lpush(session_key, data)
         else:
             self.redis.lset(session_key, index, data)
+            
 
     def num_sessions(self, session_key=None):
         """returns number of sessions under specified prefix"""
@@ -91,6 +106,8 @@ class Database:
         obtains all the data for a particular session
         :returns: observations,actions,rewards,is_alive,initial_memory
         """
+        self.worker_heartbeat("train")
+        
         session_key = session_key or self.default_session_key
         data = self.redis.lindex(session_key, index)
         return self.loads(data)

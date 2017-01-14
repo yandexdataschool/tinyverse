@@ -7,7 +7,7 @@ import theano
 import theano.tensor as T
 from agentnet import Agent
 from agentnet.environment import SessionBatchEnvironment
-from agentnet.learning import a2c_n_step
+from agentnet.learning import a2c
 from agentnet.memory import GRUCell
 from lasagne.layers import *
 from lasagne.nonlinearities import *
@@ -24,7 +24,7 @@ class Breakout(Experiment):
     def __init__(self,
                  db, #database instance (mandatory parameter)
                  sequence_length=20,  # how many steps to make before updating weights
-                 game="BreakoutDeterministic-v0", #which game to play (uses gym.make)
+                 game="PongDeterministic-v0", #which game to play (uses gym.make)
                  ):
         """a simple experiment setup that works with atari breakout"""
         self.game=game
@@ -97,22 +97,26 @@ class Breakout(Experiment):
             replay,
             session_length=sequence_length,
             experience_replay=True,
-            initial_hidden=prev_memory
+            initial_hidden=prev_memory,
+            unroll_scan=False,#speeds up compilation my 10x, slows down training by 20% (still faster than TF :P )
         )
+        rng_updates = agent.get_automatic_updates()
 
         # get reference Qvalues according to Qlearning algorithm
 
-        elwise_mse_loss = a2c_n_step.get_elementwise_objective(policy=policy_seq,
-                                                               state_values=V_seq,
-                                                               actions=replay.actions[0],
-                                                               rewards=replay.rewards*reward_scale,
-                                                               is_alive=replay.is_alive,
-                                                               gamma_or_gammas=gamma,
-                                                               n_steps=1,)
+        elwise_actor_loss,elwise_critic_loss = a2c.get_elementwise_objective(policy=policy_seq,
+                                                                             state_values=V_seq[:,:,0],
+                                                                             actions=replay.actions[0],
+                                                                             rewards=replay.rewards*reward_scale,
+                                                                             is_alive=replay.is_alive,
+                                                                             gamma_or_gammas=gamma,
+                                                                             n_steps=None,
+                                                                             n_steps_advantage=1,
+                                                                             return_separate=True)
+        #regularize with negative entropy
+        reg = (policy_seq*T.log(policy_seq)).sum(axis=-1).mean()
 
-        reg = (1. / policy_seq).sum(axis=-1).mean()
-
-        loss = elwise_mse_loss.mean() + 1e-4 * reg
+        loss = elwise_actor_loss.mean() + 0.5*elwise_critic_loss.mean() + 1e-2 * reg
 
         weights = get_all_params(agent.action_layers + list(agent.agent_states),trainable=True)
 
@@ -121,7 +125,7 @@ class Breakout(Experiment):
 
         # compile train function
         inputs = [observations, actions, rewards, is_alive]+prev_memory
-        return theano.function(inputs, loss, updates=updates, allow_input_downcast=True)
+        return theano.function(inputs, loss, updates=rng_updates+updates, allow_input_downcast=True)
 
 
     @lazy
