@@ -6,8 +6,9 @@ sys.path.insert(0,".")
 
 import argparse
 import imp
-from database import Database
 from traceback import print_exception
+import numpy as np
+from database import Database
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Tinyverse main script.'
@@ -59,9 +60,8 @@ if __name__ == "__main__":
         exc_type, exc, tb = sys.exc_info()
 
         print_exception(exc_type, exc, tb)
-        raise ValueError("The path (%s) should point to a python module containing function"
-                         "make_experiment that can be called with db param only. See breakout.py for example."
-                         " "%(args.path))
+        raise ValueError("The path (%s) should point to a _working_ python module containing function make_experiment "
+                         " that can be called with db param only. See breakout.py for example."%(args.path))
 
 
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
         experiment.train_on_sessions(args.n_iters,args.batch_size,
                                      save_period=args.sync_period)
     elif args.mode == 'eval':
-        experiment.evaluate(args.n_iters)
+        experiment.evaluate(1 if np.isinf(args.n_iters) else args.n_iters)
     elif args.mode == 'info':
         raise NotImplementedError('"info" mode not yet implemented')
     elif args.mode == 'clear':

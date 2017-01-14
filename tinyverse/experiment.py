@@ -52,7 +52,7 @@ class Experiment(object):
         self.db.load_all_params(self.agent,errors='warn')
 
         for epoch in loop:
-            if epoch+1 % reload_period == 0:
+            if (epoch+1) % reload_period == 0:
                 self.db.load_all_params(self.agent, errors='warn')
 
             # play
@@ -112,8 +112,9 @@ class Experiment(object):
         iterator = self.iterate_minibatches(n_iters, batch_size, replay_buffer_size)
 
         for epoch, batch in enumerate(iterator):
-            if epoch+1 % save_period == 0:
+            if (epoch+1) % save_period == 0:
                 self.db.save_all_params(self.agent)
+                
             self.train_step(*batch) # feed a batch of (obs, act, rew, is_alive, prev_mem)
 
 
@@ -123,7 +124,8 @@ class Experiment(object):
         :param n_games: how many games to play (successively without changing weights)
         """
         self.db.load_all_params(self.agent, errors='warn')
-        return EnvPool(self.agent, n_games=0).evaluate(n_games,*args,**kwargs)
+        return EnvPool(self.agent,self.make_env,
+                       n_games=0).evaluate(n_games,*args,**kwargs)
 
 
 
