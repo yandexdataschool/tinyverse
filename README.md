@@ -11,8 +11,8 @@ Miniverse is a reinforcement learning platform for gym/universe/custom environme
 * __Scalable:__ You can train and play 10 parallel games on your GPU desktop/server, 20 more sessions on your Macbook and another 5 on your friend's laptop when he doesn't look. (And 1000 more games and 10 trainers in the cloud ofc).
 
 The core idea is to have two types of processes:
-* __play__er - interacts with the environment, records sessions to the database, periodically loads new params
-* __learn__er - reads sessions from the database, trains agent via experience replay, sends params to the database
+* __play__-er - interacts with the environment, records sessions to the database, periodically loads new params
+* __train__-er - reads sessions from the database, trains agent via experience replay, sends params to the database
 
 Those processes revolve around __database__ that stores experience sessions and weights. The database is currently implemented with [Redis](http://redis.io/) since it is simple to setup and swift with key-value operations. You can, however, implement the database [interface](https://github.com/yandexdataschool/tinyverse/blob/master/tinyverse/database.py#L76) with what database you prefer.
 
