@@ -1,24 +1,30 @@
 Think up a better name for me. OpenAI Universe wouldbe RL trainer
 
 ### Quickstart
-* install mongodb
-  * (Ubuntu) sudo apt-get install mongodb-server 
-  * Mac OS version [HERE](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/). 
-  * Otherwise search "Install mongodb your_OS" or ask us
+* install redis server
+  * (Ubuntu) sudo apt-get install redis-server 
+  * Mac OS version [HERE](http://jasdeep.ca/2012/05/installing-redis-on-mac-os-x/). 
+  * Otherwise search "Install redis your_OS" or ask us
+  * If you want multiple machines, configure redis-server to listen to 0.0.0.0 (or anything)
 * install python packages
-  * pip install pymongo
-  * pip install git+https://github.com/manahl/arctic.git
-  * theano, lasagne, agentnet as usual
-  * gym as described [here](https://github.com/openai/gym#installing-everything)
-  * universe from [here](https://github.com/openai/universe)
+  * assuming you have [gym](https://github.com/openai/gym#installing-everything),[universe](https://github.com/openai/universe),[theano,lasagne,agentnet](http://agentnet.readthedocs.io/en/master/user/install.html) (all bleeding edge as of 2016.01.17)
   
-* Run mongo server (preferably in tmux/screen)
-  * `mongod --bind_ip 0.0.0.0 --port 8900 --dbpath ./mongodb/`
-* Run simple player
-  * `python player.py "experiment" -n 1000`
-* Run simple learner
-  * Not yet implemented
+```
+#create several player processes. Each process plays games and saves results
+#the loop below spawns 10 players. If you are doing this on a laptop, reducing to 2-4 is okay
+for i in `seq 1 10`; 
+do
+        THEANO_FLAGS=device=cpu,floatX=float32 python tinyverse atari.py play -b 3 &
+done
 
+#create learner process on GPU. batch size 10
+THEANO_FLAGS=device=gpu,floatX=float32 python tinyverse atari.py train -b 10 &
+
+#play 5 games, show results, record video to ./records (run once in a while)
+python tinyverse atari.py eval -n 5
+
+#dev: see workbench.ipynb
+```
 
 ### What is this thing?
 
