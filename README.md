@@ -21,28 +21,29 @@ Those processes revolve around __database__ that stores experience sessions and 
 
 ### Quickstart
 
-* install redis server
+1. install redis server
   * (Ubuntu) sudo apt-get install redis-server 
   * Mac OS version [HERE](http://jasdeep.ca/2012/05/installing-redis-on-mac-os-x/). 
   * Otherwise search "Install redis your_OS" or ask us
   * If you want to run on multiple machines, configure redis-server to listen to 0.0.0.0 (also mb set password)
   
-* install python packages
-  * assuming you have [gym](https://github.com/openai/gym#installing-everything),[universe](https://github.com/openai/universe),[theano,lasagne,agentnet](http://agentnet.readthedocs.io/en/master/user/install.html) (all bleeding edge as of 2016.01.17)
-  
-```
-#create several player processes. Each process plays games and saves results
-#the loop below spawns 10 players. If you are doing this on a laptop, reducing to 2-4 is okay
-for i in `seq 1 10`; 
-do
-        THEANO_FLAGS=device=cpu,floatX=float32 python tinyverse atari.py play -b 3 &
-done
+2. install python packages
+  * pip install joblib
+  * install [gym](https://github.com/openai/gym#installing-everything) and [universe](https://github.com/openai/universe)
+  * install bleeding edge [theano, lasagne and agentnet](http://agentnet.readthedocs.io/en/master/user/install.html) for examples to work.
+ 
+3. Spawn several player processes. Each process simply interacts and saves results. -b stands for batch size.
+ ```
+ for i in `seq 1 10`; 
+ do
+         python tinyverse atari.py play -b 3 &
+ done
+ ```
+4. Spawn trainer process. (demo below runs it on GPU)
+ ```
+ THEANO_FLAGS=device=gpu python tinyverse atari.py train -b 10 &
+ ```
+5. evaluate results at any time (records video to ./records)
+ ``` python tinyverse atari.py eval -n 5```
 
-#create learner process on GPU. batch size 10
-THEANO_FLAGS=device=gpu,floatX=float32 python tinyverse atari.py train -b 10 &
-
-#play 5 games, show results, record video to ./records (run once in a while)
-python tinyverse atari.py eval -n 5
-
-#dev: see workbench.ipynb
-```
+Devs: see workbench.ipynb
