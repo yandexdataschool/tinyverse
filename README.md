@@ -21,14 +21,17 @@ Those processes revolve around __database__ that stores experience sessions and 
 ### Quickstart
 
 1. install redis server
-  * (Ubuntu) sudo apt-get install redis-server 
+  * (Ubuntu) ```sudo apt-get install redis-server ```
   * Mac OS version [HERE](http://jasdeep.ca/2012/05/installing-redis-on-mac-os-x/). 
-  * Otherwise search "Install redis your_OS" or ask us
+  * Otherwise search "Install redis your_OS" or ask on gitter.
   * If you want to run on multiple machines, configure redis-server to listen to 0.0.0.0 (also mb set password)
   
 2. install python packages
-  * install [gym](https://github.com/openai/gym#installing-everything) and [universe](https://github.com/openai/universe) with environments you want to train on.
-  * install bleeding edge [theano, lasagne and agentnet](http://agentnet.readthedocs.io/en/master/user/install.html) for examples to work. Preferably setup theano to use floatX=float32
+  * [gym](https://github.com/openai/gym#installing-everything) and [universe](https://github.com/openai/universe)
+    * ```pip install gym[atari]```
+    * ```pip install universe``` - most likely needs dependencies, see urls above.
+  * install bleeding edge [theano, lasagne and agentnet](http://agentnet.readthedocs.io/en/master/user/install.html) for agentnet examples to work. 
+    * Preferably setup theano to use floatX=float32 in .theanorc
   * ```pip install joblib redis six```
   * examples require opencv: ```conda install -y -c https://conda.binstar.org/menpo opencv3```
   
@@ -40,7 +43,7 @@ Those processes revolve around __database__ that stores experience sessions and 
          python tinyverse atari.py play -b 3 &
  done
  ```
-4. Spawn trainer process. (demo below runs it on GPU)
+4. Spawn trainer process. (demo below runs on gpu, change to cpu if you have to)
  ```THEANO_FLAGS=device=gpu python tinyverse atari.py train -b 10 &```
 5. evaluate results at any time (records video to ./records)
  ```python tinyverse atari.py eval -n 5```
