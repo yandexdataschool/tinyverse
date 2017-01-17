@@ -37,7 +37,7 @@ class Experiment(object):
         """
         raise NotImplementedError("please implement train_step")
 
-    def generate_sessions(self, n_iters=float('inf'), n_games=1, reload_period=100):
+    def generate_sessions(self, n_iters=float('inf'), n_games=1, reload_period=10):
         """
         Generates sessions and records them to the database
         :param n_iters: how many batches to generate (inf means generate forever)
@@ -48,12 +48,15 @@ class Experiment(object):
         pool = EnvPool(self.agent, self.make_env, n_games=n_games)
 
         loop = count() if np.isinf(n_iters) else range(n_iters)
-
-        self.db.load_all_params(self.agent,errors='warn')
+        
+        try:
+            self.db.load_all_params(self.agent)
+        except:
+            self.db.save_all_params(self.agent)
 
         for epoch in loop:
             if (epoch+1) % reload_period == 0:
-                self.db.load_all_params(self.agent, errors='warn')
+                self.db.load_all_params(self.agent)
 
             # play
             prev_memory = list(pool.prev_memory_states)
@@ -81,7 +84,12 @@ class Experiment(object):
 
             # sample batch by these indices
             batch = list(map(self.db.get_session, batch_keys))
-            yield zip(*batch)
+            
+            #meld everything to numpy arrays and yield it
+            obs,act,rw,alive,mem = zip(*batch)
+            obs,act,rw,alive = map(np.stack,[obs,act,rw,alive])
+            mem = list(map(np.stack,zip(*mem)))
+            yield obs,act,rw,alive,mem
 
             # trim pool
             if epoch % trim_every == 0:
@@ -89,7 +97,7 @@ class Experiment(object):
 
 
     def train_on_sessions(self, n_iters=float('inf'), batch_size=100,
-                          replay_buffer_size=5000,save_period=100,
+                          replay_buffer_size=5000,save_period=10,
                           wait_for_sessions=True):
         """
         Train on sessions from database for n_iters
