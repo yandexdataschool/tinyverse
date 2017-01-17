@@ -25,18 +25,17 @@ def make_experiment(db):
 
 
 class Breakout(Experiment):
-    """ 
+    """
     A class that defines the reinforcement learning experiment.
+    
+    This particular experiment implements a simple convolutional network with A3C algorithm.
+    
     It can than be sent playing/training/evaluating via
     - python ./tinyverse atari.py play
-    - python ./tinyverse atari.py train
-    - ...
+    - python ./tinyverse atari.py train -b 10
+    - python ./tinyverse atari.py eval -n 5
     
-    developer note: the only mandatory functions are
-     - __init__
-     - make_env 
-     - train_step
-    The rest can be changed arbitrarily
+    
     """
     def __init__(self,
                  db, #database instance (mandatory parameter)

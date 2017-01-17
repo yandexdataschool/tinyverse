@@ -5,6 +5,20 @@ import numpy as np
 from agentnet.experiments.openai_gym.pool import EnvPool
 
 class Experiment(object):
+    """ 
+    A class that defines the reinforcement learning experiment.
+    It can than be sent playing/training/evaluating via
+    - python ./tinyverse experiment_name.py play
+    - python ./tinyverse experiment_name.py train -b 10
+    - python ./tinyverse experiment_name.py eval -n 5
+    
+    developer note: the only mandatory functions to implement are
+     - __init__
+     - make_env 
+     - train_step
+    The rest can be defined arbitrarily
+    """
+
     def __init__(self,
                  db,
                  agent,
