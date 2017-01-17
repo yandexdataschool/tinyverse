@@ -16,8 +16,7 @@ The core idea is to have two types of processes:
 
 Those processes revolve around __database__ that stores experience sessions and weights. The database is currently implemented with [Redis](http://redis.io/) since it is simple to setup and swift with key-value operations. You can, however, implement the database [interface](https://github.com/yandexdataschool/tinyverse/blob/master/tinyverse/database.py#L76) with what database you prefer.
 
-![img](https://s23.postimg.org/cei1cd2iz/tinyverse_scheme.png)
-
+<img src="https://s29.postimg.org/wjrmukxfr/tinyverse_scheme.png" width="480">
 
 ### Quickstart
 
