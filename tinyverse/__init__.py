@@ -2,8 +2,8 @@
 
 __version__=1.0
 
-from database import Database
-from experiment import Experiment
+from .database import Database
+from .experiment import Experiment
 
 
 #helpers

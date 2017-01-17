@@ -31,7 +31,7 @@ if __name__ == "__main__":
     parser.add_argument('-b', dest='batch_size', type=int, default=1,
                         help='how many sessions to play/learn in parallel. Used in "play" and "train"')
 
-    parser.add_argument('-s', dest='sync_period', type=int, default=100,
+    parser.add_argument('-s', dest='sync_period', type=int, default=10,
                         help='period (in minibatches), how often NN weights should be loaded in "play" or saved in "train".')
 
     parser.add_argument('--buffer-size', dest='buffer-size', type=int, default=5000,
