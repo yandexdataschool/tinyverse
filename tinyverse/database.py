@@ -2,8 +2,10 @@
 import redis
 import os,sys,time
 from warnings import  warn
-from six.moves import cPickle as pickle
 from lasagne.layers import get_all_param_values, set_all_param_values
+from six import BytesIO
+import joblib
+
 
 class Database:
     def __init__(self,
@@ -51,25 +53,25 @@ class Database:
         """starts a redis serven in a NON-DAEMON mode"""
         os.system("nohup redis-server --port %s > .redis.log &" % port)
         
-    def worker_heartbeat(self,role,pid=None,worker_prefix=None,value=1,expiration_time=30):
+    def worker_heartbeat(self,role,pid=None,worker_prefix=None,expiration_time=30):
         """registers worker to the database. Used to quickly kill all workers."""
         pid= pid or os.getpid()
         worker_prefix = worker_prefix or self.default_worker_prefix
         key = worker_prefix+role+"."+str(pid)
-        self.redis.set(key,value)
+        self.redis.set(key,time.ctime())
         if expiration_time is not None:
             self.redis.expire(key,expiration_time)
 
     def dumps(self,data):
         """converts whatever to string"""
-        return pickle.dumps(data, protocol=2)
+        s = BytesIO()
+        joblib.dump(data,s)
+        return s.getvalue()
+        
 
     def loads(self,string):
         """converts string to whatever was dumps'ed in it"""
-        kwargs = {}
-        if sys.version_info >= (3,):
-            kwargs['encoding'] = 'latin1'
-        return pickle.loads(string, **kwargs)
+        return joblib.load(BytesIO(string))
 
     #########################
     ###public DB interface###
@@ -123,12 +125,12 @@ class Database:
     def save_all_params(self, agent, key=None):
         """saves agent params into the database under given name. overwrites by default"""
         key = key or self.default_params_key
-        all_params = get_all_param_values(list(agent.agent_states) + agent.action_layers)
+        all_params = get_all_param_values(list(agent.agent_states)+agent.policy+agent.action_layers)
         self.redis.set(key, self.dumps(all_params))
 
     def load_all_params(self, agent, key=None,errors='raise'):
         """loads agent params from the database under the given name"""
-        assert errors in ('raise', 'warn', 'ignore'), "errors must be 'raise','warn' or 'ignore'"
+        assert errors in ('raise', 'warn', 'print','ignore'), "errors must be 'raise','warn','print' or 'ignore'"
 
         if errors == 'raise':
             #Main function
@@ -138,7 +140,7 @@ class Database:
                 raise redis.ResponseError("Params not found under key '%s' (got None)" % key)
 
             all_params = self.loads(raw)
-            set_all_param_values(list(agent.agent_states) + agent.action_layers, all_params)
+            set_all_param_values(list(agent.agent_states)+agent.policy+agent.action_layers, all_params)
 
         else:
             #Error handling
@@ -148,6 +150,9 @@ class Database:
                 exc_type, exc, tb = sys.exc_info()
                 if errors == 'warn':
                     warn(str(exc))
+                elif errors == 'print':
+                    print(str(exc))
+                #else errors == 'ignore'
 
 
 
