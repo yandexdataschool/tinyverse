@@ -3,11 +3,11 @@ Universe RL trainer platform. Simple. Supple. Scalable.
 
 ## Why should i care?
 
-Miniverse is a reinforcement learning platform for gym/universe/custom environments that lets you utilize any resources you have to train reinforcement learning algorithm.
+tinyverse is a reinforcement learning platform for gym/universe/custom environments that lets you utilize any resources you have to train reinforcement learning algorithm.
 
 ### Key features
 * __Simple:__ the core is currently under 400 lines including code (~50%), comments(~40%) and spaces (~10%).
-* __Supple:__ miniverse assumes almost nothing of your agent and environment. The environment may not be interruptable. Agent may have any algorithm/structure. Agent _[will soon]_(https://github.com/yandexdataschool/tinyverse/issues/14) support any framework from numpy to pure tensorflow/theano to keras/lasagne+agentnet.
+* __Supple:__ tinyverse assumes almost nothing of your agent and environment. The environment may not be interruptable. Agent may have any algorithm/structure. Agent _[will soon]_(https://github.com/yandexdataschool/tinyverse/issues/14) support any framework from numpy to pure tensorflow/theano to keras/lasagne+agentnet.
 * __Scalable:__ You can train and play 10 parallel games on your GPU desktop/server, 20 more sessions on your Macbook and another 5 on your friend's laptop when he doesn't look. (And 1000 more games and 10 trainers in the cloud ofc).
 
 The core idea is to have two types of processes:
