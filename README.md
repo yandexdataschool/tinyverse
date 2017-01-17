@@ -27,9 +27,11 @@ Those processes revolve around __database__ that stores experience sessions and 
   * If you want to run on multiple machines, configure redis-server to listen to 0.0.0.0 (also mb set password)
   
 2. install python packages
-  * pip install joblib
-  * install [gym](https://github.com/openai/gym#installing-everything) and [universe](https://github.com/openai/universe)
-  * install bleeding edge [theano, lasagne and agentnet](http://agentnet.readthedocs.io/en/master/user/install.html) for examples to work.
+  * install [gym](https://github.com/openai/gym#installing-everything) and [universe](https://github.com/openai/universe) with environments you want to train on.
+  * install bleeding edge [theano, lasagne and agentnet](http://agentnet.readthedocs.io/en/master/user/install.html) for examples to work. Preferably setup theano to use floatX=float32
+  * ```pip install joblib redis six```
+  * examples require opencv: ```conda install -y -c https://conda.binstar.org/menpo opencv3```
+  
  
 3. Spawn several player processes. Each process simply interacts and saves results. -b stands for batch size.
  ```
@@ -39,10 +41,8 @@ Those processes revolve around __database__ that stores experience sessions and 
  done
  ```
 4. Spawn trainer process. (demo below runs it on GPU)
- ```
- THEANO_FLAGS=device=gpu python tinyverse atari.py train -b 10 &
- ```
+ ```THEANO_FLAGS=device=gpu python tinyverse atari.py train -b 10 &```
 5. evaluate results at any time (records video to ./records)
- ``` python tinyverse atari.py eval -n 5```
+ ```python tinyverse atari.py eval -n 5```
 
 Devs: see workbench.ipynb
