@@ -19,12 +19,12 @@ from prefetch_generator import background
 
 def make_experiment(db):
     """
-    This is what's going to be created on "python tinyverse breakout.py ..."
+    This is what's going to be created on "python tinyverse atari.py ..."
     """
-    return Breakout(db)
+    return AtariA3C(db)
 
 
-class Breakout(Experiment):
+class AtariA3C(Experiment):
     """
     A class that defines the reinforcement learning experiment.
     
@@ -40,16 +40,16 @@ class Breakout(Experiment):
     def __init__(self,
                  db, #database instance (mandatory parameter)
                  sequence_length=25,  # how many steps to make before updating weights
-                 game="PongDeterministic-v0", #which game to play (uses gym.make)
+                 env_id="PongDeterministic-v0", #which game to play (uses gym.make)
                  ):
-        """a simple experiment setup that works with atari breakout"""
-        self.game=game
-        super(Breakout, self).__init__(db, self.make_agent(), sequence_length=sequence_length)
+        """a simple experiment setup that plays pong"""
+        self.env_id=env_id
+        super(AtariA3C, self).__init__(db, self.make_agent(), sequence_length=sequence_length)
 
     def make_env(self):
         """spawn a new environment instance"""
-        env = gym.make(self.game)
-        env = PreprocessImage(env) #preprocess image, all default parameters (see below)
+        env = gym.make(self.env_id)
+        env = PreprocessImage(env,64,64,grayscale=True) #preprocess image, all default parameters (see below)
         return env
     
     def make_agent(self,
@@ -153,7 +153,7 @@ class Breakout(Experiment):
         # also regularize to prioritize exploration
         reg_logits = T.mean(logits_seq**2)
         reg_entropy = T.mean(T.sum(policy_seq*logpolicy_seq,axis=-1))
-        loss = 0.1*elwise_actor_loss.mean() + 0.25*elwise_critic_loss.mean() + 5e-3*reg_entropy + 1e-3*reg_logits
+        loss = 0.1*elwise_actor_loss.mean() + 0.25*elwise_critic_loss.mean() + 1e-3*reg_entropy + 1e-3*reg_logits
 
         
         # Compute weight updates, clip by norm
@@ -189,7 +189,7 @@ class Breakout(Experiment):
     def iterate_minibatches(self,*args,**kwargs):
         """makes minibatch iterator work in a separate thread (speedup ~20%). Also prints RPS via tqdm."""
         from tqdm import tqdm
-        return tqdm(super(Breakout,self).iterate_minibatches(*args,**kwargs))
+        return tqdm(super(AtariA3C,self).iterate_minibatches(*args,**kwargs))
 
 
 
