@@ -32,7 +32,7 @@ Those processes revolve around __database__ that stores experience sessions and 
     * ```pip install universe``` - most likely needs dependencies, see urls above.
   * install bleeding edge [theano, lasagne and agentnet](http://agentnet.readthedocs.io/en/master/user/install.html) for agentnet examples to work. 
     * Preferably setup theano to use floatX=float32 in .theanorc
-  * ```pip install joblib redis six```
+  * ```pip install joblib redis prefetch_generator six```
   * examples require opencv: ```conda install -y -c https://conda.binstar.org/menpo opencv3```
   
  
