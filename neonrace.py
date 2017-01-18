@@ -7,14 +7,14 @@ from universe.spaces.vnc_event import keycode
 
 
 from atari import PreprocessImage, AtariA3C
-from tinyverse import Experiment
+from tinyverse import Experiment,lazy
 
 
 def make_experiment(db):
     """
     This is what's going to be created on "python tinyverse atari.py ..."
     """
-    return AtariA3C(db)
+    return UniverseA3C(db)
 
 
 class UniverseA3C(AtariA3C):
@@ -37,7 +37,7 @@ class UniverseA3C(AtariA3C):
                  db,  # database instance (mandatory parameter)
                  sequence_length=25,  # how many steps to make before updating weights
                  env_id='flashgames.NeonRace-v0',  # which game to play (uses gym.make)
-                 client_id="vnc://localhost:5900+15900", #where to run universe VNC
+                 client_id=None,#"vnc://localhost:5900+15900", #where to run universe VNC
                  keys = ('left', 'right', 'up', 'left up', 'right up', 'down', 'up x') #which keys can be pressed by agent
                  ):
         """a simple experiment setup that plays pong"""
@@ -45,18 +45,18 @@ class UniverseA3C(AtariA3C):
         self.client_id = client_id
         self.keys = keys
         
-        agent = self.make_agent(observation_space=(1,64,64),n_actions=len(keys)) #we borrow agent structure from AtariA3C
+        agent = self.make_agent(observation_shape=(1,64,64),n_actions=len(keys)+1) #we borrow agent structure from AtariA3C
         Experiment.__init__(self,db, agent, sequence_length=sequence_length)
 
     def make_env(self):
         """spawn a new environment instance"""
-
+        print(self.env_id)
         env = gym.make(self.env_id)
         env = Vision(env)  # observation is an image
         env = BlockingReset(env)  # when env.reset will freeze until env is ready
         
         #convert from env.step(('KeyEvent', 'ArrowUp', True)) to env.step(2)
-        env = DiscreteToFixedKeysVNCActions(env, self.keys) 
+        env = DiscreteToFixedKeysVNCActions(env, list(self.keys) )
         env = Unvectorize(env) #now it's actually a single env instead of a batch
 
         # crop, grayscale and rescale to 64x64
@@ -70,6 +70,13 @@ class UniverseA3C(AtariA3C):
 
         return env
 
+    @lazy
+    def train_fun(self):
+        """compiles train_fun when asked. Used to NOT waste time on that in the player process (~10-15s at the start)"""
+        print("Compiling train_fun on demand...")
+        train_fun = self.make_train_fun(self.agent, sequence_length=self.sequence_length,reward_scale=0.01)
+        print("Done!")
+        return train_fun
 
 class FixedKeyState(object):
     def __init__(self, keys):
