@@ -1,4 +1,4 @@
-"""a minimalistic experiment designed to test the framework"""
+"""a minimalistic experiment for atari skiing"""
 
 import gym
 import numpy as np
@@ -40,21 +40,20 @@ class AtariA3C(Experiment):
     def __init__(self,
                  db, #database instance (mandatory parameter)
                  sequence_length=25,  # how many steps to make before updating weights
-                 env_id="PongDeterministic-v0", #which game to play (uses gym.make)
                  ):
         """a simple experiment setup that plays pong"""
-        self.env_id=env_id
         super(AtariA3C, self).__init__(db, self.make_agent(), sequence_length=sequence_length)
 
     def make_env(self):
         """spawn a new environment instance"""
-        env = gym.make(self.env_id)
-        env = PreprocessImage(env,64,64,grayscale=True) #preprocess image, all default parameters (see below)
+        env = gym.make("Skiing-v0")
+        env = RewardForPassingGates(env)
+        env = PreprocessImage(env,crop=lambda img:img[50:-20,10:-10],grayscale=True)
         return env
     
     def make_agent(self,
                    observation_shape=(1, 64, 64), # same as env.observation_space.shape
-                   n_actions = 6,  # same as env.action_space.n
+                   n_actions = 3,  # same as env.action_space.n
         ):
         """builds agent network"""
 
@@ -153,12 +152,12 @@ class AtariA3C(Experiment):
         # also regularize to prioritize exploration
         reg_logits = T.mean(logits_seq**2)
         reg_entropy = T.mean(T.sum(policy_seq*logpolicy_seq,axis=-1))
-        loss = 0.1*elwise_actor_loss.mean() + 0.25*elwise_critic_loss.mean() + 1e-3*reg_entropy + 1e-3*reg_logits
+        loss = 0.1*elwise_actor_loss.mean() + 0.25*elwise_critic_loss.mean() + 5e-4*reg_entropy + 1e-4*reg_logits
 
         
         # Compute weight updates, clip by norm
         grads = T.grad(loss,self.weights)
-        grads = lasagne.updates.total_norm_constraint(grads,10)
+        grads = lasagne.updates.total_norm_constraint(grads,5)
         
         updates = lasagne.updates.adam(grads, self.weights,1e-4)
 
@@ -195,8 +194,8 @@ class AtariA3C(Experiment):
 
 
 import cv2
-from gym.core import ObservationWrapper
 from gym.spaces.box import Box
+from gym.core import ObservationWrapper
 class PreprocessImage(ObservationWrapper):
     def __init__(self,env,height=64,width=64,grayscale=True,
                  crop=lambda img: img[34:34+160]):
@@ -218,3 +217,22 @@ class PreprocessImage(ObservationWrapper):
         img = np.transpose(img,(2,0,1)) #reshape from (h,w,colors) to (colors,h,w)
         img = img.astype('float32')/255.
         return img
+    
+from gym.core import Wrapper
+class RewardForPassingGates(Wrapper):
+    def _reset(self):
+        """On game reset, remember the hash of initial score"""
+        s = self.env.reset()
+        self.prev_score_hash = hash(s[31:38,67:81].tobytes()) #hash of the image chunk with scoreboard
+        return s
+    def _step(self,action):
+        """on each step, if score has changed, give +1 reward, else +0"""
+        s,_,done,info = self.env.step(action)
+        new_score_hash = hash(s[31:38,67:81].tobytes()) #hash of the same image chunk
+        
+        #reward = +1 if we have just crossed the gate, else 0
+        r = int(new_score_hash != self.prev_score_hash)
+        
+        #remember new score
+        self.prev_score_hash = new_score_hash
+        return s,r,done,info
