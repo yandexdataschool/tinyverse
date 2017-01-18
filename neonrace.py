@@ -8,6 +8,11 @@ from universe.spaces.vnc_event import keycode
 
 from atari import PreprocessImage, AtariA3C
 from tinyverse import Experiment,lazy
+import theano
+import theano.tensor as T
+import lasagne
+from agentnet.learning import a2c
+from agentnet.environment import SessionBatchEnvironment
 
 
 def make_experiment(db):
@@ -69,14 +74,78 @@ class UniverseA3C(AtariA3C):
                 'fine_quality_level': 50, 'subsample_level': 3})
 
         return env
+    
+    def make_train_fun(self,agent,
+                       sequence_length=25,  # how many steps to make before updating weights
+                       observation_shape=(1,64, 64),  # same as env.observation_space.shape
+                       reward_scale=1e-3, #rewards are multiplied by this. May be useful if they are large.
+                       gamma=0.99, #discount from TD
+        ):
+        """Compiles a function to train for one step"""
 
-    @lazy
-    def train_fun(self):
-        """compiles train_fun when asked. Used to NOT waste time on that in the player process (~10-15s at the start)"""
-        print("Compiling train_fun on demand...")
-        train_fun = self.make_train_fun(self.agent, sequence_length=self.sequence_length,reward_scale=0.01)
-        print("Done!")
-        return train_fun
+        #make replay environment
+        observations = T.tensor(theano.config.floatX,broadcastable=(False,)*(2+len(observation_shape)),
+                                name="observations[b,t,color,width,height]")
+        
+        actions = T.imatrix("actions[b,t]")
+        rewards,is_alive = T.matrices("rewards[b,t]","is_alive[b,t]")
+        prev_memory = [l.input_var for l in agent.agent_states.values()]
+
+
+        replay = SessionBatchEnvironment(observations,
+                                         [observation_shape],
+                                         actions=actions,
+                                         rewards=rewards,
+                                         is_alive=is_alive)
+
+        #replay sessions
+        _, _, _, _, (logits_seq, V_seq) = agent.get_sessions(
+            replay,
+            session_length=sequence_length,
+            experience_replay=True,
+            initial_hidden=prev_memory,
+            unroll_scan=False,#speeds up compilation 10x, slows down training by 20% (still 4x faster than TF :P )
+        )
+        rng_updates = agent.get_automatic_updates() #updates of random states (will be passed to a function)
+        
+        # compute pi(a|s) and log(pi(a|s)) manually [use logsoftmax]
+        # we can't guarantee that theano optimizes logsoftmax automatically since it's still in dev
+        logits_flat = logits_seq.reshape([-1,logits_seq.shape[-1]])
+        policy_seq = T.nnet.softmax(logits_flat).reshape(logits_seq.shape)
+        logpolicy_seq = T.nnet.logsoftmax(logits_flat).reshape(logits_seq.shape)
+        
+        # get policy gradient
+        elwise_actor_loss,elwise_critic_loss = a2c.get_elementwise_objective(policy=logpolicy_seq,
+                                                                             treat_policy_as_logpolicy=True,
+                                                                             state_values=V_seq[:,:,0],
+                                                                             actions=replay.actions[0],
+                                                                             rewards=replay.rewards*reward_scale,
+                                                                             is_alive=replay.is_alive,
+                                                                             gamma_or_gammas=gamma,
+                                                                             n_steps=None,
+                                                                             return_separate=True)
+        
+        # add losses with magic numbers 
+        # (you can change them more or less harmlessly, this usually just makes learning faster/slower)
+        # also regularize to prioritize exploration
+        reg_logits = T.mean(logits_seq**2)
+        reg_entropy = T.mean(T.sum(policy_seq*logpolicy_seq,axis=-1))
+        loss = 0.1*elwise_actor_loss.mean() + 0.25*elwise_critic_loss.mean() + 1e-3*reg_entropy + 1e-2*reg_logits
+
+        
+        # Compute weight updates, clip by norm
+        grads = T.grad(loss,self.weights)
+        grads = lasagne.updates.total_norm_constraint(grads,10)
+        
+        updates = lasagne.updates.adam(grads, self.weights,1e-4)
+
+
+        # compile train function
+        inputs = [observations, actions, rewards, is_alive]+prev_memory
+        return theano.function(inputs,
+                               updates=rng_updates+updates,
+                               allow_input_downcast=True)
+
 
 class FixedKeyState(object):
     def __init__(self, keys):
