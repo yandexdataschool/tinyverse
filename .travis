@@ -14,6 +14,7 @@ addons:
       - libopenblas-dev
       - liblapack-dev
       - gfortran
+      - make
       - cmake
       - cmake-data
       - swig
@@ -22,18 +23,22 @@ addons:
       - libjpeg-dev
       - zlib1g-dev
       - python-dev
-      - mongodb-server
+      - redis-server
+      - golang 
+      - libjpeg-turbo8-dev
 
 install:
   #dependeicies via pip
+  - travis_wait pip install https://github.com/theano/theano/archive/master.zip
+  - travis_wait pip install https://github.com/lasagne/lasagne/archive/master.zip
+  - travis_wait pip install https://github.com/yandexdataschool/agentnet/archive/master.zip
   - travis_wait pip install nose nose-parameterized
-  - travis_wait pip install https://github.com/yandexdataschool/AgentNet/archive/master.zip
-  - travis_wait pip install pymongo
-  - travis_wait pip install git+https://github.com/manahl/arctic.git
+  - travis_wait pip install redis joblib prefetch_generator
+  #install opencv somehow
+  
   # installing Gym
-  - git clone https://github.com/openai/gym.git
-  - cd gym && pip install -e . && cd ..
-  - cd gym && pip install -e '.[atari]' && cd ..
+  - travis_wait pip install gym[atari]
+  - travis_wait pip install universe
   
 
 script:
