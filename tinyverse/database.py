@@ -2,7 +2,6 @@
 import redis
 import os,sys,time
 from warnings import  warn
-from lasagne.layers import get_all_param_values, set_all_param_values
 from six import BytesIO
 import joblib
 
@@ -122,37 +121,19 @@ class Database:
         session_key = session_key or self.default_session_key
         self.redis.ltrim(session_key, start, end)
 
-    def save_all_params(self, agent, key=None):
-        """saves agent params into the database under given name. overwrites by default"""
+    def save(self, value, key=None):
+        """saves value into the database under given key. overwrites by default"""
         key = key or self.default_params_key
-        all_params = get_all_param_values(list(agent.agent_states)+agent.policy+agent.action_layers)
-        self.redis.set(key, self.dumps(all_params))
+        self.redis.set(key, self.dumps(value))
 
-    def load_all_params(self, agent, key=None,errors='raise'):
-        """loads agent params from the database under the given name"""
-        assert errors in ('raise', 'warn', 'print','ignore'), "errors must be 'raise','warn','print' or 'ignore'"
+    def load(self, key=None):
+        """loads value (e.g. agent params) from the database under the given name."""
 
-        if errors == 'raise':
-            #Main function
-            key = key or self.default_params_key
-            raw = self.redis.get(key)
-            if raw is None:
-                raise redis.ResponseError("Params not found under key '%s' (got None)" % key)
-
-            all_params = self.loads(raw)
-            set_all_param_values(list(agent.agent_states)+agent.policy+agent.action_layers, all_params)
-
-        else:
-            #Error handling
-            try:
-                return self.load_all_params(agent,key=key,errors='raise')
-            except:
-                exc_type, exc, tb = sys.exc_info()
-                if errors == 'warn':
-                    warn(str(exc))
-                elif errors == 'print':
-                    print(str(exc))
-                #else errors == 'ignore'
+        key = key or self.default_params_key
+        raw = self.redis.get(key)
+        if raw is None:
+            raise redis.ResponseError("Value not found under key '%s' (got None)" % key)
+        return self.loads(raw)
 
 
 
